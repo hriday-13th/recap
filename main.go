@@ -8,7 +8,12 @@ import (
 	"os"
 	"syscall"
 	"time"
+	"os/signal"
 	"github.com/google/gopacket"
+	"recap/internal/capturer"
+	"recap/internal/decoder"
+	"recap/internal/metrics"
+	"recap/internal/writer"
 )
 
 func main() {
@@ -38,7 +43,7 @@ func run() error {
 	)
 
 	if *readfile != "" {
-		cap, err = capturer.NewFileCapturer(*readfile)
+		cap, err = capturer.NewFromFile(*readfile, *filter, logger)
 	} else {
 		cap, err = capturer.New(capturer.Config{
 			Interface: *iface,
@@ -61,7 +66,7 @@ func run() error {
 		return fmt.Errorf("init pcap writer: %w", err)
 	}
 
-	printer := writer.NewTextPrinter(os.Stdout, *verbose, *quiet)
+	printer := writer.NewTextPrinter(os.Stdout, *verbose)
 
 	stats := &metrics.Counters{}
 
