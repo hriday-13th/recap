@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
 )
 
@@ -93,7 +94,7 @@ func NewFromFile(path string, filter string, logger *slog.Logger) (*Capturer, er
 	return &Capturer{cfg: cfg, handle: handle, logger: logger}, nil
 }
 
-func (c *Capturer) Run(ctx context.Context, out chan<- pcap.PacketData) error {
+func (c *Capturer) Run(ctx context.Context, out chan<- gopacket.Packet) error {
 	defer c.handle.Close()
 
 	src := gopacket.NewPacketSource(c.handle, c.handle.LinkType())
