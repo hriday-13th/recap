@@ -8,9 +8,11 @@ RACE 		:= -race
 all: build
 
 build:
+	mkdir -p bin
 	go build $(GOFLAGS) -o bin/$(BINARY) $(CMD)
 
 build-debug:
+	mkdir -p bin
 	go build -o bin/$(BINARY) $(CMD)
 
 test:
@@ -20,7 +22,7 @@ vet:
 	go vet ./...
 
 lint:
-	staticheck ./...
+	staticcheck ./...
 
 deps:
 	go mod tidy

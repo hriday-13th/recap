@@ -78,7 +78,52 @@ func New(cfg Config, logger *slog.Logger) (*Capturer, error) {
 	return &Capturer{cfg: cfg, handle: handle, logger: logger}, nil
 }
 
+func NewFromFile(path string, filter string, logger *slog.Logger) (*Capturer, error) {
+	handle, err := pcap.OpenOffline(path)
+	if err != nil {
+		return nil, fmt.Errorf("capturer: open file %q: %w", path, err)
+	}
+	if filter != "" {
+		if err := handle.SetBPFFilter(filter); err != nil {
+			handle.Close()
+			return nil, fmt.Errorf("capturer: set BPF filter %q: %w", filter, err)
+		}
+	}
+	cfg := Config{BPFFilter: filter}
+	return &Capturer{cfg: cfg, handle: handle, logger: logger}, nil
+}
 
+func (c *Capturer) Run(ctx context.Context, out chan<- pcap.PacketData) error {
+	defer c.handle.Close()
+
+	src := gopacket.NewPacketSource(c.handle, c.handle.LinkType())
+	src.NoCopy = true
+
+	packets := src.Packets()
+
+	for {
+		select {
+		case <- ctx.Done():
+			c.logger.Info("capture shutting down", "reason", ctx.Err())
+			return nil
+
+		case pkt, ok := <- packets:
+			if !ok {
+				c.logger.Info("Packet source exhausted (EOF)")
+				return nil
+			}
+			if pkt.ErrorLayer() != nil {
+				c.logger.Info("Packets decode error", "err", pkt.ErrorLayer().Error())
+				continue
+			}
+			select {
+			case out <- pkt:
+			case <- ctx.Done():
+				return nil
+			}
+		}
+	}
+}
 
 func (c *Capturer) Stats() (*pcap.Stats, error) {
 	return c.handle.Stats()
